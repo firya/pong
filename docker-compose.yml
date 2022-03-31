@@ -1,17 +1,18 @@
-version: '3.7'
+version: "3.7"
 
 services:
-  ts-node-docker:
+  node:
     build:
       context: .
       dockerfile: Dockerfile
-      target: base
+      target: production
     volumes:
       - ./src:/home/node/app/src
       - ./nodemon.json:/home/node/app/nodemon.json
-    container_name: ts-node-docker
+    container_name: "${CONTAINER_NAME}_node"
     expose:
-      - '4000'
+      - "3000"
     ports:
-      - '4000:4000'
-    command: npm run dev
+      - "3000:3000"
+    command: node dist/index.js
+    restart: unless-stopped

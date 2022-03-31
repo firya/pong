@@ -1,5 +1,8 @@
 FROM node:14 as base
 
+ARG NODE_ENV=development
+ENV NODE_ENV=${NODE_ENV}
+
 WORKDIR /home/node/app
 
 COPY package.json ./
@@ -10,6 +13,6 @@ COPY . .
 
 FROM base as production
 
-ENV NODE_PATH=./build
+ENV NODE_PATH=./dist
 
 RUN npm run build

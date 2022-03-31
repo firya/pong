@@ -1,6 +1,12 @@
-import express from 'express';
+import express, { Request, Response } from "express";
 
 const app = express();
-app.listen(4000, () => {
-  console.log('server running on port 4000');
+
+app.get("/", (req: Request, res: Response) => {
+	var a = 10;
+	return res.json({
+		status: "success",
+	});
 });
+
+app.listen(3000, () => console.log("listening on port 3000"));
