@@ -8,7 +8,6 @@ export interface MenuProps {
 
 export default (props: MenuProps) => {
 	let { data } = props;
-	const ASPECT_RATIO = 3 / 4;
 
 	const requestRef = useRef<number>(0);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
