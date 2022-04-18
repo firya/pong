@@ -1,4 +1,4 @@
-FROM node:14 as base
+FROM node:16 as base
 
 ARG NODE_ENV=development
 ENV NODE_ENV=${NODE_ENV}

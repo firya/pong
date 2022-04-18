@@ -1,18 +1,39 @@
 version: "3.7"
 
 services:
-  node:
+  backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
       target: production
     volumes:
-      - ./src:/home/node/app/src
-      - ./nodemon.json:/home/node/app/nodemon.json
-    container_name: "${CONTAINER_NAME}_node"
+      - ./backend/src:/home/node/app/src
+      - ./backend/nodemon.json:/home/node/app/nodemon.json
+    container_name: "${CONTAINER_NAME}_backend"
     expose:
-      - "3000"
+      - 3001
     ports:
-      - "3000:3000"
+      - 3001:3001
     command: node dist/index.js
     restart: unless-stopped
+    depends_on:
+      - mongo
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: "${CONTAINER_NAME}_frontend"
+    volumes:
+      - ./frontend:/app
+    expose:
+      - 3000
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    depends_on:
+      - backend
+  # mongo:
+  #   image: mongo
+  #   container_name: "${CONTAINER_NAME}_db"
+  #   ports:
+  #     - "27017:27017"
