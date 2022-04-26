@@ -1,53 +1,86 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { Canvas } from "@react-three/fiber";
+
 import defaultData from "../../data/default";
+
 import styles from "./index.module.css";
 
-export interface MenuProps {
-	data: string;
+import Game from "../game";
+
+export interface ArcanoidProps {
+	data?: string | null;
+	size?: [number, number];
+	paddle?: [number, number];
+	ballRadius?: number;
 }
 
-export default (props: MenuProps) => {
-	let { data } = props;
+const Arcanoid = (props: ArcanoidProps) => {
+	let { data = defaultData } = props;
 
-	const requestRef = useRef<number>(0);
-	const canvasRef = useRef<HTMLCanvasElement | null>(null);
-	console.log(canvasRef);
+	const defaultLives = 3;
+	const [lives, setLives] = useState<number>(defaultLives);
 
-	data = data || defaultData;
+	//prepare array of blocks (trim empty rows)
+	const parseData = useMemo((): string[][] | null => {
+		return !data
+			? null
+			: data
+					.split("\n")
+					.filter((row) => row.length)
+					.map((row) => row.split(""));
+	}, [data]);
+
+	const [blocksData, setBlocksData] = useState<string[][] | null>(parseData);
+
+	const liveDecrease = (): void => {
+		setLives((value) => value - 1);
+	};
 
 	useEffect(() => {
-		init();
-		requestRef.current = requestAnimationFrame(render);
-		return () => cancelAnimationFrame(requestRef.current);
+		document.body.addEventListener(
+			"touchmove",
+			(e) => {
+				e.preventDefault();
+			},
+			{ passive: false }
+		);
+
+		return () => {
+			document.body.removeEventListener("touchmove", (e) => {
+				e.preventDefault();
+			});
+		};
 	}, []);
 
-	const init = (): void => {
-		window.addEventListener("resize", setupCanvas);
-		setupCanvas();
-	};
-
-	const setupCanvas = (): void => {
-		if (canvasRef.current) {
-			canvasRef.current.width = canvasRef.current.clientWidth;
-			canvasRef.current.height = canvasRef.current.clientHeight;
-		}
-	};
-
-	const render = (time: Number) => {
-		requestRef.current = requestAnimationFrame(render);
-
-		if (canvasRef.current) {
-			const ctx = canvasRef.current.getContext("2d");
-
-			if (ctx) {
-				ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-			}
-		}
+	const startOver = (): void => {
+		setLives(defaultLives);
+		setBlocksData(parseData);
 	};
 
 	return (
-		<div className={styles.wrapper}>
-			<canvas className={styles.canvas} ref={canvasRef} />
-		</div>
+		<>
+			<div className={styles.dashboard}>Lives: {lives}</div>
+			{lives <= 0 && (
+				<div className={styles.gameover}>
+					<div className={styles.text}>Game Over</div>{" "}
+					<button className={styles.button} onClick={startOver}>
+						New Game
+					</button>
+				</div>
+			)}
+			<Canvas>
+				<Game
+					{...props}
+					data={blocksData}
+					lives={lives}
+					type={"arcanoid"}
+					livesHandler={liveDecrease}
+					updateBlocks={setBlocksData}
+				/>
+			</Canvas>
+			{}
+		</>
 	);
 };
+
+export default Arcanoid;

@@ -8,7 +8,13 @@ export interface LayoutProps {
 function DefaultLayout(props: LayoutProps) {
 	const { children } = props;
 
-	return <div className="app">{children}</div>;
+	return (
+		<div className="app">
+			<div className="header">Header</div>
+			<div className="content">{children}</div>
+			<div className="footer">Footer</div>
+		</div>
+	);
 }
 
 export default DefaultLayout;
