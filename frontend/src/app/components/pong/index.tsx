@@ -4,42 +4,47 @@ import { Canvas } from "@react-three/fiber";
 import defaultData from "../../data/default";
 
 import Game from "../game";
+import { Difficulties, PlayerColors } from "../game";
 
 interface ArcanoidProps {
-	data: string;
+	difficulty: Difficulties;
+	players?: 2 | 4;
 	defaultLives?: number;
+	size?: [number, number];
 }
 
 const Arcanoid = (props: ArcanoidProps) => {
-	const { data = defaultData, defaultLives = 3 } = props;
-	const [lives, setLives] = useState<number[]>([defaultLives]);
+	const {
+		defaultLives = 1,
+		players = 2,
+		size = [100, 160],
+		difficulty,
+	} = props;
+	const [lives, setLives] = useState<number[]>(
+		Array(players).fill(defaultLives)
+	);
 	const [win, setWin] = useState<boolean>(false);
 
-	//prepare array of blocks (trim empty rows)
-	const parseData = useMemo((): string[][] | null => {
-		return data
-			? data
-					.split("\n")
-					.filter((row) => row.length)
-					.map((row) => row.split(""))
-			: null;
-	}, [data]);
-
-	const [blocksData, setBlocksData] = useState<string[][] | null>(parseData);
-
 	const liveDecrease = (player: number): void => {
-		// setLives((value) => value - 1);
+		const newLives = [...lives];
+		newLives[player]--;
+		setLives(newLives);
 	};
 
 	const startOver = (): void => {
-		setLives([defaultLives]);
-		setBlocksData(parseData);
+		setLives(Array(players).fill(defaultLives));
 		setWin(false);
 	};
 
 	return (
 		<>
-			<div className="dashboard">Lives: {lives[0]}</div>
+			<div className="dashboard">
+				{lives.map((live, i) => (
+					<span key={`live_${i}`} style={{ color: PlayerColors[i] }}>
+						{live}
+					</span>
+				))}
+			</div>
 			{(lives.some((live) => live <= 0) || win) && (
 				<div className="gameover">
 					<div className="h1">{win ? "You win!" : "Game Over"}</div>
@@ -50,12 +55,12 @@ const Arcanoid = (props: ArcanoidProps) => {
 			)}
 			<Canvas id="canvas">
 				<Game
-					data={blocksData}
-					type={"arcanoid"}
+					type={players === 2 ? "vs1" : "vs3"}
 					lives={lives}
+					size={size}
+					difficulty={difficulty}
 					livesHandler={liveDecrease}
 					winHandler={setWin}
-					updateBlocks={setBlocksData}
 				/>
 			</Canvas>
 			{}

@@ -3,7 +3,9 @@ import { useParams } from "react-router";
 
 export interface GameProps {}
 
-export default (props: GameProps) => {
+const GamePage = (props: GameProps) => {
 	const { id } = useParams();
-	return <div>{id}</div>;
+	return <>{id}</>;
 };
+
+export default GamePage;

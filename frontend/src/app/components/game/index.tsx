@@ -1,6 +1,5 @@
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
-
+import { useFrame, useLoader } from "@react-three/fiber";
 import React, { useEffect, useRef, useState, useMemo } from "react";
 
 import Field from "../field";
@@ -9,7 +8,11 @@ import Paddle from "../paddle";
 import Ball from "../ball";
 import Boundaries from "../boundaries";
 import Blocks from "../blocks";
-import { arrayBuffer } from "stream/consumers";
+
+import { checkBallBlockCollision } from "../../utils";
+
+import sound from "../../data/pong.wav";
+import { isCommaListExpression } from "typescript";
 
 export enum Difficulties {
 	Easy = 1,
@@ -18,30 +21,52 @@ export enum Difficulties {
 	Impossible = 10,
 }
 
+export enum PlayerColors {
+	"white",
+	"red",
+	"blue",
+	"yellow",
+}
+
 export interface GameProps {
 	data?: string[][] | null;
 	size?: [number, number];
 	paddle?: [number, number];
 	ballRadius?: number;
-	livesHandler: () => void;
-	lives: number;
-	updateBlocks: (blocks: string[][]) => void;
+	lives: number[];
+	livesHandler: (player: number) => void;
+	winHandler: (value: boolean) => void;
+	updateBlocks?: (blocks: string[][]) => void;
+	difficulty?: Difficulties;
 	type?: "arcanoid" | "vs1" | "vs3" | "multiplayer";
 	player?: "first" | "second";
 }
 
 const Game = (props: GameProps) => {
 	const {
+		lives,
+		livesHandler,
+		winHandler,
+		updateBlocks = (blocks: string[][]): void => {},
 		data = null,
 		size = [100, 160],
 		paddle = [20, 2],
 		ballRadius = 0.5,
-		livesHandler,
-		lives,
-		updateBlocks,
+		difficulty = Difficulties.Normal,
 		player = "first",
 		type = "arcanoid",
 	} = props;
+
+	const [mute, setMute] = useState<boolean>(true);
+
+	const ping = new Audio(sound);
+	const playSound = () => {
+		if (!mute) {
+			ping.currentTime = 0.008;
+			ping.volume = 1;
+			ping.play();
+		}
+	};
 
 	const boundaryType: number[] = useMemo(() => {
 		const boundaries = {
@@ -77,23 +102,37 @@ const Game = (props: GameProps) => {
 	const ballRandomBounce: number = 15;
 	const avoidAnglesX: number = 30;
 
-	const ballSpeed = useRef<number>(1);
-	const ballAngle = useRef<number>(45);
+	const defaultBallSpeed: number = 1;
+	const defaultBallAngle: number = 45;
+
+	const ballSpeed = useRef<number>(defaultBallSpeed);
+	const ballAngle = useRef<number>(defaultBallAngle);
 
 	const [started, setStarted] = useState<boolean>(false);
 
 	useEffect(() => {
 		const start = (): void => {
-			if (!started && lives > 0) {
+			if (!started && lives.every((live) => live > 0)) {
 				setStarted(true);
 			}
 		};
-		window.addEventListener("click", start);
+
+		const canvas = document.getElementById("canvas")!;
+
+		canvas.addEventListener("click", start);
+		window.addEventListener("keypress", toggleMute);
 
 		return () => {
-			window.removeEventListener("click", start);
+			canvas.removeEventListener("click", start);
+			window.addEventListener("keypress", toggleMute);
 		};
 	}, [lives]);
+
+	const toggleMute = (e: KeyboardEvent): void => {
+		if (e.key == "m" || e.key == "ь") {
+			setMute((value) => !value);
+		}
+	};
 
 	useFrame(() => {
 		if (started) {
@@ -101,7 +140,7 @@ const Game = (props: GameProps) => {
 
 			while (remainCalc-- > 0) {
 				paddleRef.forEach((paddle) => {
-					checkBallCollision({
+					checkCollision({
 						object: paddle.current,
 						remove: false,
 						randomBounce: true,
@@ -109,14 +148,19 @@ const Game = (props: GameProps) => {
 				});
 
 				if (boundariesRef.current) {
-					checkBallCollision({ object: boundariesRef.current });
+					boundariesRef.current.children.forEach((boundary, i) => {
+						checkCollision({ object: boundary });
+					});
 				}
 
 				if (blocksRef.current) {
-					checkBallCollision({
-						object: blocksRef.current,
-						remove: true,
-						data: data,
+					blocksRef.current.children.some((block, i) => {
+						return checkCollision({
+							i: i,
+							object: block,
+							remove: true,
+							data: data,
+						});
 					});
 				}
 
@@ -127,157 +171,154 @@ const Game = (props: GameProps) => {
 					calcPrecision * Math.sin((ballAngle.current * Math.PI) / 180);
 			}
 
-			if (
-				ballRef.current.position.y < -size[1] / 2 ||
-				ballRef.current.position.y > size[1] / 2 ||
-				ballRef.current.position.x < -size[0] / 2 ||
-				ballRef.current.position.x > size[0] / 2
-			) {
-				setStarted(false);
-				ballRef.current.position.x = paddleRef[0].current.position.x;
-				ballRef.current.position.y = ballStartY;
+			const losePlayers = [
+				ballRef.current.position.y < -size[1] / 2,
+				ballRef.current.position.y > size[1] / 2,
+				ballRef.current.position.x < -size[0] / 2,
+				ballRef.current.position.x > size[0] / 2,
+			];
+			if (losePlayers.some((p) => p)) {
+				const losePlayer = losePlayers.indexOf(true);
+				const win =
+					(lives[losePlayer] === 1 && losePlayer !== 0 && player === "first") ||
+					(lives[losePlayer] === 1 && losePlayer !== 1 && player === "second");
 
-				ballAngle.current = 45;
-				livesHandler();
+				endGame(win, losePlayer);
 			}
 		} else {
 			ballRef.current.position.x = paddleRef[0].current.position.x;
 		}
 	});
 
+	const endGame = (
+		win: boolean = false,
+		lose: number | undefined = undefined
+	): void => {
+		setStarted(false);
+		ballRef.current.position.x = paddleRef[0].current.position.x;
+		ballRef.current.position.y = ballStartY;
+
+		ballSpeed.current = defaultBallSpeed;
+		ballAngle.current = defaultBallAngle;
+
+		ballAngle.current = 45;
+
+		livesHandler(lose as number);
+
+		if (win) {
+			winHandler(true);
+		}
+	};
+
 	interface CheckBallCollision {
-		object: THREE.Mesh | THREE.Group;
+		object: THREE.Object3D;
+		i?: number;
 		remove?: boolean;
 		randomBounce?: boolean;
 		data?: string[][] | null;
 	}
-	const checkBallCollision = ({
+	const checkCollision = ({
+		i = 0,
 		object,
-		remove = false,
 		randomBounce = false,
+		remove = false,
 		data = null,
-	}: CheckBallCollision) => {
-		if (object.type === "Group") {
-			object.children.forEach((block, i) => {
-				const collision = checkCollision(ballRef.current, block, randomBounce);
-				if (remove && collision && data) {
-					let counter = 0;
-					const newData = data.map((row, j) =>
-						row.map((cell, k) => {
-							const result = counter == i ? " " : cell;
-							if (cell !== " ") {
-								counter++;
-							}
-							return result;
-						})
-					);
-					updateBlocks(newData);
+	}: CheckBallCollision): boolean => {
+		const collision = checkBallBlockCollision(ballRef.current, object);
+
+		if (collision.collision) {
+			playSound();
+			let newAngle = (ballAngle.current + 180) % 360;
+
+			if (data && remove) {
+				removeBlock(data, i);
+			}
+
+			if (collision.side == "left" || collision.side == "right") {
+				newAngle = (180 - ballAngle.current) % 360;
+
+				// fix ball can't stack in block
+				if (collision.offset) {
+					ballRef.current.position.x = collision.offset;
 				}
-			});
-		} else {
-			checkCollision(ballRef.current, object, randomBounce);
-		}
-	};
+			} else if (collision.side == "top" || collision.side == "bottom") {
+				let correctedAngle = ballAngle.current;
 
-	const checkCollision = (
-		ball: THREE.Mesh,
-		block: THREE.Object3D,
-		randomBounce: boolean = false
-	): boolean => {
-		const blockHalf: { x: number; y: number } = {
-			x: block.scale.x / 2,
-			y: block.scale.y / 2,
-		};
+				if (randomBounce && collision.position) {
+					let randomBounceValue: number =
+						-Math.random() * ballRandomBounce * collision.position;
+					correctedAngle += randomBounceValue;
 
-		const centerDist: { x: number; y: number } = {
-			x: ball.position.x - block.position.x,
-			y: ball.position.y - block.position.y,
-		};
-
-		const side: { x: number; y: number } = {
-			x: Math.abs(centerDist.x) - blockHalf.x,
-			y: Math.abs(centerDist.y) - blockHalf.y,
-		};
-
-		if (side.x > ballRadius || side.y > ballRadius) {
-			return false;
-		}
-
-		if (side.x < -ballRadius && side.y < -ballRadius) {
-			return false;
-		}
-
-		if (side.x < 0 || side.y < 0) {
-			if (Math.abs(side.x) <= ballRadius && side.y < 0) {
-				// console.log("collision x");
-
-				// paddle fix ball can't stack in block
-				ball.position.x =
-					centerDist.x > 0
-						? block.position.x + blockHalf.x + ballRadius
-						: block.position.x - blockHalf.x - ballRadius;
-
-				ballAngle.current = (180 - ballAngle.current) % 360;
-				ballSpeed.current =
-					ballSpeed.current * acceleration > speedLimit
-						? speedLimit
-						: ballSpeed.current * acceleration;
-			} else if (Math.abs(side.y) <= ballRadius && side.x < 0) {
-				// console.log("collision y");
-
-				// paddle fix ball can't stack in block
-				ball.position.y =
-					centerDist.y > 0
-						? block.position.y + blockHalf.y + ballRadius
-						: block.position.y - blockHalf.y - ballRadius;
-
-				let correctedAngle: number = ballAngle.current;
-
-				if (randomBounce) {
-					let randomBounceValue: number = Math.random() * ballRandomBounce;
-					if (ball.position.x > block.position.x) {
-						randomBounceValue *= -1;
-					} else if (ball.position.x == block.position.x) {
-						randomBounceValue = 0;
-					}
-
-					let correctedAngle = ballAngle.current + randomBounceValue;
+					const correctedAngleRad = (correctedAngle * Math.PI) / 180;
 
 					// fix almost flat angles
-					if (Math.cos(correctedAngle) > Math.cos(avoidAnglesX)) {
+					if (
+						Math.cos(correctedAngleRad) >
+						Math.cos((avoidAnglesX * Math.PI) / 180)
+					) {
 						correctedAngle =
-							Math.sin(correctedAngle) > 0 ? avoidAnglesX : -avoidAnglesX;
-					} else if (Math.cos(correctedAngle) < Math.cos(180 - avoidAnglesX)) {
+							Math.sin(correctedAngleRad) > 0 ? avoidAnglesX : -avoidAnglesX;
+					} else if (
+						Math.cos(correctedAngleRad) <
+						Math.cos(((180 - avoidAnglesX) * Math.PI) / 180)
+					) {
 						correctedAngle =
-							Math.sin(correctedAngle) > 0
+							Math.sin(correctedAngleRad) > 0
 								? 180 - avoidAnglesX
 								: 180 + avoidAnglesX;
 					}
 				}
 
-				ballAngle.current = (360 - correctedAngle) % 360;
-				ballSpeed.current =
-					ballSpeed.current * acceleration > speedLimit
-						? speedLimit
-						: ballSpeed.current * acceleration;
+				newAngle = (360 - correctedAngle) % 360;
+
+				// fix ball can't stack in block
+				if (collision.offset) {
+					ballRef.current.position.y = collision.offset;
+				}
+			} else if (collision.corner) {
+				// corner collision
+				newAngle =
+					collision.corner === "bottom-left"
+						? 225
+						: collision.corner === "bottom-right"
+						? 315
+						: collision.corner === "top-left"
+						? 135
+						: 45;
 			}
+
+			ballAngle.current = newAngle;
+			ballSpeed.current =
+				ballSpeed.current * acceleration > speedLimit
+					? speedLimit
+					: ballSpeed.current * acceleration;
 
 			return true;
 		}
 
-		if (side.x * side.x + side.y * side.y < ballRadius * ballRadius) {
-			return false;
+		return false;
+	};
+
+	const removeBlock = (data: string[][], i: number): void => {
+		let counter = 0;
+		const newData = data.map((row, j) =>
+			row.map((cell, k) => {
+				let result = cell;
+				if (counter == i) {
+					result =
+						parseInt(cell, 10) > 1 ? (parseInt(cell, 10) - 1).toString() : " ";
+				}
+
+				if (cell !== " ") {
+					counter++;
+				}
+				return result;
+			})
+		);
+		if (counter == 1) {
+			endGame(true);
 		}
-
-		// console.log("collision corner");
-
-		ballAngle.current = (ballAngle.current + 180) % 360;
-		ballSpeed.current =
-			ballSpeed.current * acceleration > speedLimit
-				? speedLimit
-				: ballSpeed.current * acceleration;
-
-		return true;
+		updateBlocks(newData);
 	};
 
 	const getOrCreatePaddleRef = (id: number) => {
@@ -320,6 +361,7 @@ const Game = (props: GameProps) => {
 						key={`paddle_${i}`}
 						position={[positionX, positionY, positionZ]}
 						scale={[scaleX, scaleY, defaultHeight]}
+						difficulty={auto ? difficulty : Difficulties.Impossible}
 						i={i}
 						ref={getOrCreatePaddleRef(i)}
 						size={size}

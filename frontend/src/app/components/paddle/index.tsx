@@ -2,7 +2,7 @@ import * as THREE from "three";
 import React, { forwardRef, ComponentPropsWithoutRef, useMemo } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 
-import { Difficulties } from "../game";
+import { Difficulties, PlayerColors } from "../game";
 
 import Block from "../block";
 
@@ -14,7 +14,7 @@ type PaddleProps = ComponentPropsWithoutRef<"mesh"> & {
 	axis: "x" | "y";
 	auto?: boolean;
 	control?: boolean;
-	difficulty?: Difficulties;
+	difficulty: Difficulties;
 };
 
 const Paddle = forwardRef<THREE.Mesh, PaddleProps>((props, ref) => {
@@ -26,7 +26,7 @@ const Paddle = forwardRef<THREE.Mesh, PaddleProps>((props, ref) => {
 		axis = "x",
 		auto = false,
 		control = true,
-		difficulty = Difficulties.Normal,
+		difficulty,
 	} = props;
 
 	const maxSpeed: number = control ? Difficulties.Impossible : difficulty;
@@ -34,8 +34,7 @@ const Paddle = forwardRef<THREE.Mesh, PaddleProps>((props, ref) => {
 	const el = ref as React.MutableRefObject<THREE.Mesh>;
 	const ballRef = ball as React.MutableRefObject<THREE.Mesh>;
 	const color: string = useMemo(() => {
-		const colors = ["white", "red", "blue", "yellow"];
-		return colors[i];
+		return PlayerColors[i];
 	}, [i]);
 
 	useFrame(({ mouse }) => {

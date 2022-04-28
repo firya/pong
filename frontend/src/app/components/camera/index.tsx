@@ -36,7 +36,7 @@ const Camera = (props: CameraProps) => {
 	const togglePerspective = (e: KeyboardEvent): void => {
 		if (e.key == "p" || e.key == "з") {
 			setPerspective((value) => !value);
-			// setPerspectiveCameraDefault();
+			setPerspectiveCameraDefault();
 		}
 	};
 
