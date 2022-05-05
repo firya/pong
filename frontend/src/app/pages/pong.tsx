@@ -9,7 +9,12 @@ const PongPage = () => {
 
 	level = level.charAt(0).toUpperCase() + level.slice(1);
 
-	return <Pong difficulty={Difficulties[level as keyof typeof Difficulties]} />;
+	return (
+		<Pong
+			difficulty={Difficulties[level as keyof typeof Difficulties]}
+			type={"vs1"}
+		/>
+	);
 };
 
 export default PongPage;

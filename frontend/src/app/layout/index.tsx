@@ -18,7 +18,7 @@ function DefaultLayout(props: LayoutProps) {
 			{ passive: false }
 		);
 
-		return () => {
+		return (): void => {
 			document.body.removeEventListener("touchmove", (e) => {
 				e.preventDefault();
 			});

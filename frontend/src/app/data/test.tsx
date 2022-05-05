@@ -1,1 +1,3 @@
-export default `1`;
+const str = `1`;
+
+export default str;

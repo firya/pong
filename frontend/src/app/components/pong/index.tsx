@@ -1,38 +1,75 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-
-import defaultData from "../../data/default";
+import { Socket } from "socket.io-client";
 
 import Game from "../game";
 import { Difficulties, PlayerColors } from "../game";
+import { debug } from "console";
 
 interface ArcanoidProps {
-	difficulty: Difficulties;
+	difficulty?: Difficulties;
 	players?: 2 | 4;
+	player?: "first" | "second";
 	defaultLives?: number;
 	size?: [number, number];
+	socket?: Socket | null;
+	type?: "arcanoid" | "vs1" | "vs3" | "multiplayer";
 }
 
 const Arcanoid = (props: ArcanoidProps) => {
 	const {
-		defaultLives = 1,
+		defaultLives = 3,
+		player = "first",
 		players = 2,
 		size = [100, 160],
-		difficulty,
+		difficulty = Difficulties.Normal,
+		type = "vs1",
+		socket = null,
 	} = props;
-	const [lives, setLives] = useState<number[]>(
-		Array(players).fill(defaultLives)
-	);
+	const defaultLeavesArray: number[] = Array(players).fill(defaultLives);
+	const [lives, setLives] = useState<number[]>(defaultLeavesArray);
 	const [win, setWin] = useState<boolean>(false);
 
-	const liveDecrease = (player: number): void => {
-		const newLives = [...lives];
-		newLives[player]--;
+	useEffect(() => {
+		if (socket) {
+			if (type === "multiplayer" && player === "second") {
+				socket.on("updatelives", (value) => {
+					setLives(value);
+				});
+				socket.on("winhandler", () => {
+					setWin(true);
+				});
+			}
+			socket.on("newgame", () => {
+				setLives(defaultLeavesArray);
+				setWin(false);
+			});
+		}
+
+		return () => {
+			if (socket) {
+				socket.off("updatelives");
+				socket.off("newgame");
+			}
+		};
+	}, []);
+
+	const liveDecrease = (p: number): void => {
+		const newLives: number[] = [...lives];
+
+		newLives[p]--;
 		setLives(newLives);
+		if (socket) {
+			socket.emit("updatelives", newLives);
+		}
 	};
 
 	const startOver = (): void => {
-		setLives(Array(players).fill(defaultLives));
+		setLives(defaultLeavesArray);
+		if (socket) {
+			socket.emit("updatelives", defaultLeavesArray);
+			socket.emit("newgame");
+		}
 		setWin(false);
 	};
 
@@ -55,12 +92,14 @@ const Arcanoid = (props: ArcanoidProps) => {
 			)}
 			<Canvas id="canvas">
 				<Game
-					type={players === 2 ? "vs1" : "vs3"}
+					type={type}
 					lives={lives}
 					size={size}
+					player={player}
 					difficulty={difficulty}
 					livesHandler={liveDecrease}
 					winHandler={setWin}
+					socket={socket}
 				/>
 			</Canvas>
 			{}

@@ -63,5 +63,6 @@ export const checkBallBlockCollision = (
 	} else if (centerDist.x < 0 && centerDist.y > 0) {
 		corner = "top-left";
 	}
+
 	return { collision: true, side: "corner", corner: corner };
 };

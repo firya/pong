@@ -14,6 +14,7 @@ const PongVs3Page = () => {
 			difficulty={Difficulties[level as keyof typeof Difficulties]}
 			players={4}
 			size={[100, 100]}
+			type={"vs3"}
 		/>
 	);
 };

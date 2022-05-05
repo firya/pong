@@ -34,7 +34,7 @@ const Camera = (props: CameraProps) => {
 	}, []);
 
 	const togglePerspective = (e: KeyboardEvent): void => {
-		if (e.key == "p" || e.key == "з") {
+		if (e.key === "p" || e.key === "з") {
 			setPerspective((value) => !value);
 			setPerspectiveCameraDefault();
 		}
@@ -48,7 +48,6 @@ const Camera = (props: CameraProps) => {
 	const setOrthoCameraDefault = () => {
 		const canvasSize: { width: number; height: number } = state.get().size;
 
-		// orthoCamera.current.rotation.z = (45 * 180) / Math.PI;
 		orthoCamera.current.zoom =
 			Math.min(canvasSize.width / size[0], canvasSize.height / size[1]) * 1;
 	};

@@ -28,7 +28,9 @@ const Arcanoid = (props: ArcanoidProps) => {
 	const [blocksData, setBlocksData] = useState<string[][] | null>(parseData);
 
 	const liveDecrease = (player: number): void => {
-		// setLives((value) => value - 1);
+		const newLives: number[] = [...lives];
+		newLives[player]--;
+		setLives(newLives);
 	};
 
 	const startOver = (): void => {

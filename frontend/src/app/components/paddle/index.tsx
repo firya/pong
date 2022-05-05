@@ -15,6 +15,7 @@ type PaddleProps = ComponentPropsWithoutRef<"mesh"> & {
 	auto?: boolean;
 	control?: boolean;
 	difficulty: Difficulties;
+	invertControl?: boolean;
 };
 
 const Paddle = forwardRef<THREE.Mesh, PaddleProps>((props, ref) => {
@@ -23,17 +24,18 @@ const Paddle = forwardRef<THREE.Mesh, PaddleProps>((props, ref) => {
 		scale,
 		size,
 		ball,
+		difficulty,
 		axis = "x",
 		auto = false,
 		control = true,
-		difficulty,
+		invertControl = false,
 	} = props;
 
 	const maxSpeed: number = control ? Difficulties.Impossible : difficulty;
 	const { viewport } = useThree();
 	const el = ref as React.MutableRefObject<THREE.Mesh>;
 	const ballRef = ball as React.MutableRefObject<THREE.Mesh>;
-	const color: string = useMemo(() => {
+	const color: string = useMemo((): string => {
 		return PlayerColors[i];
 	}, [i]);
 
@@ -42,15 +44,17 @@ const Paddle = forwardRef<THREE.Mesh, PaddleProps>((props, ref) => {
 
 		let target: number | undefined;
 
-		const ballPosition = ballRef.current.position[axis] ?? 0;
-		const limit = axis === "x" ? size[0] / 2 : size[1] / 2;
+		const ballPosition: number = ballRef.current.position[axis] ?? 0;
+		const limit: number = axis === "x" ? size[0] / 2 - 1 : size[1] / 2 - 1;
 
 		if (auto) {
 			target = ballPosition;
 		}
 		if (control) {
 			const dimension = axis === "x" ? "width" : "height";
-			target = (mouse[axis] * currentViewport[dimension]) / 2;
+			target = invertControl
+				? -(mouse[axis] * currentViewport[dimension]) / 2
+				: (mouse[axis] * currentViewport[dimension]) / 2;
 		}
 
 		// fix in boundaries
@@ -66,7 +70,8 @@ const Paddle = forwardRef<THREE.Mesh, PaddleProps>((props, ref) => {
 		}
 
 		if (el && target !== undefined && el.current.position[axis] !== target) {
-			let speed = el.current.position[axis] > target ? -maxSpeed : maxSpeed;
+			let speed: number =
+				el.current.position[axis] > target ? -maxSpeed : maxSpeed;
 
 			if (Math.abs(el.current.position[axis] - target) < maxSpeed) {
 				el.current.position[axis] = target;

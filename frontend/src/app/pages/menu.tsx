@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
 
 const MenuPage = () => {
-	const navigate = useNavigate();
 	const defaultMenu: MenuItemProps[] = useMemo(
 		() => [
 			{
@@ -72,21 +71,20 @@ const MenuPage = () => {
 	useEffect(() => {
 		window.addEventListener("keydown", back);
 
-		return () => {
+		return (): void => {
 			window.removeEventListener("keydown", back);
 		};
 	}, []);
 
 	const back = (e: KeyboardEvent): void => {
-		console.log(e.key);
-		if (e.key == "Escape") {
+		if (e.key === "Escape") {
 			setPath((prev) => {
 				return prev.slice(0, -1);
 			});
 		}
 	};
 
-	const structure = useMemo(() => {
+	const structure = useMemo((): MenuItemProps[] => {
 		let str: MenuItemProps[] = defaultMenu;
 
 		for (let i = 0; i < path.length; i++) {
@@ -98,7 +96,7 @@ const MenuPage = () => {
 		return str;
 	}, [path]);
 
-	const changeMenu = (i: number) => {
+	const changeMenu = (i: number): void => {
 		setPath((prev) => {
 			return i >= 0 ? [...prev, i] : prev.slice(0, -1);
 		});
@@ -126,7 +124,7 @@ export interface MenuItemProps {
 }
 
 const MenuItem = (props: MenuItemProps) => {
-	const { i = 0, text, callback, path, children, changeMenu } = props;
+	const { i = 0, text, callback, path, changeMenu } = props;
 	const navigate = useNavigate();
 
 	const clickHandler = (): void => {

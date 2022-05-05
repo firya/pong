@@ -9,7 +9,7 @@ import ArcanoidPage from "./pages/arcanoid";
 import PongPage from "./pages/pong";
 import PongVs3Page from "./pages/pongvs3";
 
-export default () => {
+const RouterComponent = () => {
 	return (
 		<DefaultLayout>
 			<Router>
@@ -25,3 +25,5 @@ export default () => {
 		</DefaultLayout>
 	);
 };
+
+export default RouterComponent;

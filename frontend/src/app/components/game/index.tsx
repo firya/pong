@@ -1,6 +1,7 @@
 import * as THREE from "three";
-import { useFrame, useLoader } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import React, { useEffect, useRef, useState, useMemo } from "react";
+import { Socket } from "socket.io-client";
 
 import Field from "../field";
 import Camera from "../camera";
@@ -12,7 +13,6 @@ import Blocks from "../blocks";
 import { checkBallBlockCollision } from "../../utils";
 
 import sound from "../../data/pong.wav";
-import { isCommaListExpression } from "typescript";
 
 export enum Difficulties {
 	Easy = 1,
@@ -38,13 +38,15 @@ export interface GameProps {
 	winHandler: (value: boolean) => void;
 	updateBlocks?: (blocks: string[][]) => void;
 	difficulty?: Difficulties;
-	type?: "arcanoid" | "vs1" | "vs3" | "multiplayer";
+	type: "arcanoid" | "vs1" | "vs3" | "multiplayer";
 	player?: "first" | "second";
+	socket?: Socket | null;
 }
 
 const Game = (props: GameProps) => {
 	const {
 		lives,
+		type,
 		livesHandler,
 		winHandler,
 		updateBlocks = (blocks: string[][]): void => {},
@@ -54,14 +56,14 @@ const Game = (props: GameProps) => {
 		ballRadius = 0.5,
 		difficulty = Difficulties.Normal,
 		player = "first",
-		type = "arcanoid",
+		socket = null,
 	} = props;
 
-	const [mute, setMute] = useState<boolean>(true);
+	const mute = useRef<boolean>(true);
 
 	const ping = new Audio(sound);
 	const playSound = () => {
-		if (!mute) {
+		if (!mute.current) {
 			ping.currentTime = 0.008;
 			ping.volume = 1;
 			ping.play();
@@ -97,7 +99,6 @@ const Game = (props: GameProps) => {
 	const calcPrecision: number = 0.1;
 	const acceleration: number = 1.01;
 	const speedLimit: number = 5;
-	const ballStartY: number = -size[1] / 2 + paddle[1] + ballRadius + 1;
 	const defaultHeight: number = 4; // z size of scene
 	const ballRandomBounce: number = 15;
 	const avoidAnglesX: number = 30;
@@ -105,70 +106,118 @@ const Game = (props: GameProps) => {
 	const defaultBallSpeed: number = 1;
 	const defaultBallAngle: number = 45;
 
+	const losePlayer = useRef<number>(0);
+
 	const ballSpeed = useRef<number>(defaultBallSpeed);
 	const ballAngle = useRef<number>(defaultBallAngle);
 
-	const [started, setStarted] = useState<boolean>(false);
+	const started = useRef<boolean>(false);
+
+	useEffect(() => {
+		if (socket) {
+			socket.on("update", updateMultiplayerData);
+			socket.on("startgame", () => {
+				started.current = true;
+			});
+		}
+
+		return () => {
+			if (socket) {
+				socket.off("update");
+				socket.off("startgame");
+			}
+		};
+	}, [paddleRef]);
+
+	const updateMultiplayerData = (gameData: any) => {
+		if (player === "first") {
+			if (paddleRef[1].current !== null) {
+				paddleRef[1].current.position.x = gameData.paddlePos.x;
+				paddleRef[1].current.position.y = gameData.paddlePos.y;
+			}
+		} else {
+			if (ballRef.current !== null) {
+				ballRef.current.position.x = gameData.ballPos.x;
+				ballRef.current.position.y = gameData.ballPos.y;
+			}
+
+			if (paddleRef[0].current !== null) {
+				paddleRef[0].current.position.x = gameData.paddlePos.x;
+				paddleRef[0].current.position.y = gameData.paddlePos.y;
+			}
+		}
+	};
 
 	useEffect(() => {
 		const start = (): void => {
-			if (!started && lives.every((live) => live > 0)) {
-				setStarted(true);
+			if (!started.current && lives.every((live) => live > 0)) {
+				if (type === "multiplayer" && socket && player === "second") {
+					socket.emit("startgame");
+				} else {
+					if (
+						(losePlayer.current === 0 && player === "first") ||
+						(losePlayer.current === 1 && player === "second")
+					) {
+						started.current = true;
+					}
+				}
 			}
 		};
 
-		const canvas = document.getElementById("canvas")!;
+		const canvas: HTMLElement = document.getElementById("canvas")!;
 
 		canvas.addEventListener("click", start);
 		window.addEventListener("keypress", toggleMute);
 
-		return () => {
+		return (): void => {
 			canvas.removeEventListener("click", start);
 			window.addEventListener("keypress", toggleMute);
 		};
-	}, [lives]);
+	}, [lives, started]);
 
 	const toggleMute = (e: KeyboardEvent): void => {
-		if (e.key == "m" || e.key == "ь") {
-			setMute((value) => !value);
+		if (e.key === "m" || e.key === "ь") {
+			mute.current = !mute.current;
 		}
 	};
 
 	useFrame(() => {
-		if (started) {
-			let remainCalc = ballSpeed.current / calcPrecision;
+		if (started.current) {
+			if (player === "first") {
+				let remainCalc: number = ballSpeed.current / calcPrecision;
 
-			while (remainCalc-- > 0) {
-				paddleRef.forEach((paddle) => {
-					checkCollision({
-						object: paddle.current,
-						remove: false,
-						randomBounce: true,
-					});
-				});
-
-				if (boundariesRef.current) {
-					boundariesRef.current.children.forEach((boundary, i) => {
-						checkCollision({ object: boundary });
-					});
-				}
-
-				if (blocksRef.current) {
-					blocksRef.current.children.some((block, i) => {
-						return checkCollision({
-							i: i,
-							object: block,
-							remove: true,
-							data: data,
+				while (remainCalc-- > 0) {
+					paddleRef.forEach((paddle) => {
+						checkCollision({
+							object: paddle.current,
+							remove: false,
+							randomBounce: true,
 						});
 					});
-				}
 
-				// update ball position
-				ballRef.current.position.x +=
-					calcPrecision * Math.cos((ballAngle.current * Math.PI) / 180);
-				ballRef.current.position.y +=
-					calcPrecision * Math.sin((ballAngle.current * Math.PI) / 180);
+					if (boundariesRef.current) {
+						boundariesRef.current.children.forEach((boundary, i) => {
+							checkCollision({ object: boundary });
+						});
+					}
+
+					if (blocksRef.current) {
+						blocksRef.current.children.some((block, i) => {
+							return checkCollision({
+								i: i,
+								object: block,
+								remove: true,
+								data: data,
+							});
+						});
+					}
+
+					// update ball position
+					ballRef.current.position.x +=
+						calcPrecision * Math.cos((ballAngle.current * Math.PI) / 180);
+					ballRef.current.position.y +=
+						calcPrecision * Math.sin((ballAngle.current * Math.PI) / 180);
+				}
 			}
 
 			const losePlayers = [
@@ -178,32 +227,72 @@ const Game = (props: GameProps) => {
 				ballRef.current.position.x > size[0] / 2,
 			];
 			if (losePlayers.some((p) => p)) {
-				const losePlayer = losePlayers.indexOf(true);
+				losePlayer.current = losePlayers.indexOf(true);
 				const win =
-					(lives[losePlayer] === 1 && losePlayer !== 0 && player === "first") ||
-					(lives[losePlayer] === 1 && losePlayer !== 1 && player === "second");
+					(lives[losePlayer.current] === 1 &&
+						losePlayer.current !== 0 &&
+						player === "first") ||
+					(lives[losePlayer.current] === 1 &&
+						losePlayer.current !== 1 &&
+						player === "second");
 
-				endGame(win, losePlayer);
+				endGame(win);
+
+				if (socket && player === "first" && lives[0] === 1) {
+					socket.emit("winhandler");
+				}
 			}
-		} else {
-			ballRef.current.position.x = paddleRef[0].current.position.x;
+		} else if (player !== "second") {
+			if (losePlayer.current > 1) {
+				ballRef.current.position.y =
+					paddleRef[losePlayer.current].current.position.y;
+			} else {
+				ballRef.current.position.x =
+					paddleRef[losePlayer.current].current.position.x;
+			}
+		}
+		if (socket) {
+			if (player === "first") {
+				socket.emit("update", {
+					ballPos: ballRef.current.position,
+					paddlePos: paddleRef[0].current.position,
+				});
+			} else {
+				socket.emit("update", {
+					paddlePos: paddleRef[1].current.position,
+				});
+			}
 		}
 	});
 
-	const endGame = (
-		win: boolean = false,
-		lose: number | undefined = undefined
-	): void => {
-		setStarted(false);
-		ballRef.current.position.x = paddleRef[0].current.position.x;
-		ballRef.current.position.y = ballStartY;
+	const endGame = (win: boolean = false): void => {
+		started.current = false;
+
+		ballRef.current.position.x =
+			losePlayer.current < 2
+				? paddleRef[losePlayer.current].current.position.x
+				: losePlayer.current === 2
+				? -size[0] / 2 + paddle[1] + ballRadius + 1
+				: size[0] / 2 - paddle[1] - ballRadius - 1;
+		ballRef.current.position.y =
+			losePlayer.current > 1
+				? paddleRef[losePlayer.current].current.position.y
+				: losePlayer.current === 0
+				? -size[1] / 2 + paddle[1] + ballRadius + 1
+				: size[1] / 2 - paddle[1] - ballRadius - 1;
 
 		ballSpeed.current = defaultBallSpeed;
 		ballAngle.current = defaultBallAngle;
 
 		ballAngle.current = 45;
 
-		livesHandler(lose as number);
+		livesHandler(losePlayer.current);
+
+		if (losePlayer.current >= 1 && type !== "multiplayer" && !win) {
+			setTimeout((): void => {
+				started.current = true;
+			}, 1000);
+		}
 
 		if (win) {
 			winHandler(true);
@@ -228,21 +317,22 @@ const Game = (props: GameProps) => {
 
 		if (collision.collision) {
 			playSound();
-			let newAngle = (ballAngle.current + 180) % 360;
+
+			let newAngle: number = (ballAngle.current + 180) % 360;
 
 			if (data && remove) {
 				removeBlock(data, i);
 			}
 
-			if (collision.side == "left" || collision.side == "right") {
+			if (collision.side === "left" || collision.side === "right") {
 				newAngle = (180 - ballAngle.current) % 360;
 
 				// fix ball can't stack in block
 				if (collision.offset) {
 					ballRef.current.position.x = collision.offset;
 				}
-			} else if (collision.side == "top" || collision.side == "bottom") {
-				let correctedAngle = ballAngle.current;
+			} else if (collision.side === "top" || collision.side === "bottom") {
+				let correctedAngle: number = ballAngle.current;
 
 				if (randomBounce && collision.position) {
 					let randomBounceValue: number =
@@ -300,11 +390,11 @@ const Game = (props: GameProps) => {
 	};
 
 	const removeBlock = (data: string[][], i: number): void => {
-		let counter = 0;
+		let counter: number = 0;
 		const newData = data.map((row, j) =>
 			row.map((cell, k) => {
-				let result = cell;
-				if (counter == i) {
+				let result: string = cell;
+				if (counter === i) {
 					result =
 						parseInt(cell, 10) > 1 ? (parseInt(cell, 10) - 1).toString() : " ";
 				}
@@ -315,14 +405,14 @@ const Game = (props: GameProps) => {
 				return result;
 			})
 		);
-		if (counter == 1) {
+		if (counter === 1) {
 			endGame(true);
 		}
 		updateBlocks(newData);
 	};
 
 	const getOrCreatePaddleRef = (id: number) => {
-		if (!paddleRef[id]) {
+		if (paddleRef[id] === undefined || paddleRef[id] === null) {
 			paddleRef[id] = React.createRef();
 		}
 		return paddleRef[id];
@@ -333,7 +423,9 @@ const Game = (props: GameProps) => {
 			.fill(0)
 			.map((_, i) => {
 				const axis = i < 2 ? "x" : "y";
-				const control = i === 0;
+				const control =
+					(player === "first" && i === 0) || (player === "second" && i === 1);
+				const invertControl = i === 1;
 				const auto =
 					(type !== "multiplayer" && i > 0) ||
 					(type === "multiplayer" && player === "first" && i === 0) ||
@@ -363,6 +455,7 @@ const Game = (props: GameProps) => {
 						scale={[scaleX, scaleY, defaultHeight]}
 						difficulty={auto ? difficulty : Difficulties.Impossible}
 						i={i}
+						invertControl={invertControl}
 						ref={getOrCreatePaddleRef(i)}
 						size={size}
 						axis={axis}
@@ -380,7 +473,7 @@ const Game = (props: GameProps) => {
 
 			<group
 				rotation={
-					player == "second" ? [0, 0, (180 * Math.PI) / 180] : [0, 0, 0]
+					player === "second" ? [0, 0, (180 * Math.PI) / 180] : [0, 0, 0]
 				}
 			>
 				<Field
@@ -407,7 +500,7 @@ const Game = (props: GameProps) => {
 				<Ball
 					ref={ballRef}
 					scale={[ballRadius * 2, ballRadius * 2, ballRadius * 2]}
-					position={[0, ballStartY, 0]}
+					position={[0, -size[1] / 2 + paddle[1] + ballRadius + 1, 0]}
 				/>
 			</group>
 		</>

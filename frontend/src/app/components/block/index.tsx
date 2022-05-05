@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { forwardRef, ComponentPropsWithoutRef, useState } from "react";
+import { forwardRef, ComponentPropsWithoutRef } from "react";
 
 type BlockProps = ComponentPropsWithoutRef<"mesh"> & {
 	color?: string;
