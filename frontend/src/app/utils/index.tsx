@@ -2,7 +2,7 @@ export const checkBallBlockCollision = (
 	ball: THREE.Mesh,
 	block: THREE.Object3D
 ) => {
-	const ballRadius = ball.scale.x;
+	const ballRadius = ball.scale.x / 2;
 
 	const blockHalf: { x: number; y: number } = {
 		x: block.scale.x / 2,

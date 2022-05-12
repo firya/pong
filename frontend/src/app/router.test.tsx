@@ -1,9 +1,9 @@
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { createMemoryHistory } from "history";
-import React from "react";
-import { Router } from "react-router-dom";
+import { createRoot } from "react-dom/client";
 
 import AppRouter from "./router";
 
-test("renders learn react link", () => {});
+it("renders without crashing", () => {
+	const container = document.createElement("root");
+	const root = createRoot(container);
+	root.render(<AppRouter />);
+});
