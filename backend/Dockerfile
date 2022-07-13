@@ -1,18 +1,25 @@
-FROM node:16 as base
+FROM node:alpine
 
-ARG NODE_ENV=development
-ENV NODE_ENV=${NODE_ENV}
+WORKDIR /app
 
-WORKDIR /home/node/app
+#build nodejs
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY src ./src
 
-COPY package.json ./
-
-RUN npm i
-
-COPY . .
-
-FROM base as production
-
-ENV NODE_PATH=./dist
-
+RUN npm ci
 RUN npm run build
+
+RUN npm i pm2 -g
+
+#build create-react-app as static for nodejs
+COPY frontend ./frontend
+WORKDIR /app/frontend
+RUN npm ci
+RUN npm run build
+
+WORKDIR /app
+
+EXPOSE 3001
+
+CMD ["pm2-runtime", "start", "dist/index.js"]

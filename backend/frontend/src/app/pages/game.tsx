@@ -6,7 +6,7 @@ import Pong from "../components/pong";
 
 const GamePage = () => {
 	let { id } = useParams();
-	const ENDPOINT = `${window.location.hostname}:3001`;
+	const ENDPOINT = `${window.location.hostname}:8088`;
 	const [socket, setSocket] = useState<Socket>(null!);
 	const [start, setStart] = useState<boolean>(false);
 	const [full, setFull] = useState<boolean>(false);

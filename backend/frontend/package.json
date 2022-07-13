@@ -24,7 +24,7 @@
 	},
 	"scripts": {
 		"start": "react-scripts start",
-		"build": "react-scripts build",
+		"build": "BUILD_PATH='../public' react-scripts build",
 		"test": "react-scripts test --watchAll --testMatch **/*.test.{tsx,js}",
 		"eject": "react-scripts eject"
 	},
