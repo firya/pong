@@ -21,21 +21,20 @@ jobs:
         run: docker compose build --no-cache
       - name: Docker compose push
         run: docker compose push
-  # update_ssh:
-  #   name: Telling DigitalOcean server to update
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: executing remote ssh commands
-  #       uses: appleboy/ssh-action@master
-  #       with:
-  #         host: ${{ secrets.HOST }}
-  #         username: ${{ secrets.USERNAME }}
-  #         port: ${{ secrets.PORT }}
-  #         key: ${{ secrets.SSHKEY }}
-  #         script: |
-  #           cd pong
-  #           git reset --hard origin/master
-  #           git pull origin master
-  #           docker compose stop
-  #           docker compose build --no-cache
-  #           docker compose up -d --force-recreate
+  update_ssh:
+    name: Telling DigitalOcean server to update
+    runs-on: ubuntu-latest
+    steps:
+      - name: executing remote ssh commands
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          port: ${{ secrets.PORT }}
+          key: ${{ secrets.SSHKEY }}
+          script: |
+            cd pong
+            git pull origin master
+            docker rmi --force firya/pong_backend:latest || true
+            docker compose build --pull --no-cache
+            docker compose ud -d --force-recreate
