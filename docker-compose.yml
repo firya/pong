@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: "pong_backend"
     image: firya/pong_backend:latest
+    ports:
+      - 8088:8088
     environment:
       - NODE_ENV=$NODE_ENV
       - VIRTUAL_HOST=$VIRTUAL_HOST
