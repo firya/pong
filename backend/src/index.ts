@@ -1,7 +1,6 @@
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import express from "express";
-import cors from "cors";
 
 var app = express();
 
@@ -11,11 +10,7 @@ app.get("/*", (req, res) => {
 	res.sendFile("/app/public/index.html");
 });
 
-app.listen(3001, () => {
-	console.log(`Example app listening on port 3001!`);
-});
-
-const httpServer = createServer();
+const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
 	cors: {
@@ -100,4 +95,4 @@ const findRoomIndexByUser = (user: string): number => {
 	return rooms.findIndex((room) => room.first === user || room.second === user);
 };
 
-httpServer.listen(8088);
+httpServer.listen(3001);
