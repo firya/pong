@@ -57,7 +57,7 @@ const MenuPage = () => {
 				],
 			},
 			{
-				text: "Multiplayer",
+				text: "Multiplayer (under construction)",
 				callback: () => {
 					return `/game/${nanoid(8)}`;
 				},
