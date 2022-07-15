@@ -21,6 +21,6 @@ RUN npm run build
 WORKDIR /app
 
 EXPOSE 3001
-EXPOSE 8081
+EXPOSE 8088
 
 CMD ["pm2-runtime", "start", "dist/index.js"]

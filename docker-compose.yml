@@ -8,7 +8,6 @@ services:
     container_name: "pong_backend"
     image: firya/pong_backend:latest
     ports:
-      - 3000:3001
       - 8088:8088
     environment:
       - NODE_ENV=$NODE_ENV
