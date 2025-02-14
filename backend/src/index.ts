@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import express from "express";
@@ -17,7 +18,7 @@ const io = new Server(httpServer, {
 		origin:
 			process.env.NODE_ENV === "development"
 				? "http://localhost:8080"
-				: `https://${process.env.VIRTUAL_HOST}`,
+				: `https://${process.env.DOMAIN}`,
 		methods: ["GET", "POST"],
 	},
 });
