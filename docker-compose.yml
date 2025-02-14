@@ -2,7 +2,7 @@ services:
   pong-backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.backend
+      dockerfile: Dockerfile
     container_name: pong_backend
     restart: unless-stopped
     environment:
