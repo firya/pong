@@ -1,0 +1,39 @@
+services:
+  pong-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    container_name: pong_backend
+    restart: unless-stopped
+    environment:
+      - PORT=3001
+      - NODE_PATH=./dist
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pong-backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.pong-backend.tls=true"
+      - "traefik.http.routers.pong-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.pong-backend.loadbalancer.server.port=3001"
+      - "traefik.http.middlewares.pong-strip.stripprefix.prefixes=/api"
+      - "traefik.http.routers.pong-backend.middlewares=pong-strip"
+    networks:
+      - traefik-public
+
+  pong-frontend:
+    image: nginx:alpine
+    container_name: pong_frontend
+    restart: unless-stopped
+    volumes:
+      - ./public:/usr/share/nginx/html
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pong-frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.pong-frontend.tls=true"
+      - "traefik.http.routers.pong-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.pong-frontend.loadbalancer.server.port=80"
+    networks:
+      - traefik-public
+
+networks:
+  traefik-public:
+    external: true
